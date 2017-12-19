@@ -4,21 +4,13 @@ program CKABP
 
 use dpfurye
 use functions
+use functions2
 
 implicit none
 
-
-! X1 и X2 -- критические значения для разделения шумового и 
-! детерминированного компонентов временного ряда, отвечающие 
-! уровню значимости q
-! X2=0.0, так как рассматриваем случай, когда частота заранее неизвестна
-real(pr), parameter :: q = 0.01_pr, X1 = 9.0_pr, X2 = 0.0_pr
 real(pr), dimension(0:N-1) :: X, t
 real(pr) :: dt
 integer :: i, j, k
-complex(pr), dimension(:), allocatable :: X_FFT
-integer :: N2
-real(pr), dimension(:), allocatable :: D
 
 !------------------------------------------------
 ! В процедуре get_series создается массив X(t_i). Там же задается
@@ -26,40 +18,32 @@ real(pr), dimension(:), allocatable :: D
 ! массив со значениями X. известно N (оно в модуле functions),
 ! которое используется внутри этой процедуры и в главной программе.
 call get_series(X,t)
-call print(X,t,'series.dat')
+call print_tX(t,X,'series.dat')
 
 call delete_trend(X,t)
-call print(X,t,'centered.dat')
+call print_tX(t,X,'centered.dat')
 
+! Выполняется процедура БПФ и вычисление периодограммы
+call print_tX(X,(/(0.0_pr,i=0,N-1)/),'data.dat')
+call do_bpf('1','y')
+call compute_Dj(dt=t(1)-t(0))
 
-! Выполняется процедура БПФ
-open(100,file='data.dat',status='replace')
-	write(100,*) '# ', N
-	do k = 0, N-1
-		write(100,*) X(k), 0.0_pr
-	end do
-close(100,status='keep')
+call estimate_dispersion(X,N)
+call print_tX(nu,D,'period.dat')
+call print_tX((/nu(0),nu(N2/4),nu((N2+1)/2)/),(/(disp_lvl,i=1,3)/),'disp.dat')
 
-call do_bpf('1')
+! Выполняется процедура обратного БПФ и вычисление коррелограммы
+call corrgramm()
+call print_tX(t,c_m,'corrgramm.dat')
 
-open(100,file='result.dat',status='old')
-	read(100,'(2x,i10)') N2
-	allocate(X_FFT(0:N2-1),D(0:N2-1))
-	do j = 0,N2-1
-		read(100,*) X_FFT(j)
-	end do
-close(100,status='keep')
-
-forall (j=0:(N2+1)/2) D(j) = 1/N**2 * (real(X_FFT)**2 + aimag(X_FFT)**2)
-
-
-
+call smooth()
+call print_tX(nu,Dsm,'smoothed.dat')
 
 !================================================
 
 contains 
 
-subroutine print(X,t,filename)
+subroutine print_tX(t,X,filename)
 ! Просто печать результатов в процедуре, чтобы не висело в главной 
 ! программе сто циклов с открытием файла
 	implicit none
@@ -71,11 +55,12 @@ subroutine print(X,t,filename)
 	N = size(X)
 	!--------------------------------------------
 	open(100,file=filename,status='replace')
+		write(100,*) '# ', N
 		do k = 0,N-1
 			write(100,*) t(k), X(k)
 		end do
 	close(100,status='keep')
 	
-end subroutine print
+end subroutine print_tX
 
 end program CKABP

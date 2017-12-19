@@ -3,9 +3,10 @@ module functions
 
 implicit none
 
-! Здесь N получает свое значение
-integer,  parameter :: N = 230  
 integer,  parameter :: pr = 8
+
+! Здесь N получает свое значение
+integer,  parameter :: N = 230 + 300 
 real(pr), parameter :: pi = 4.0_pr*atan(1.0_pr)
 
 contains
@@ -14,7 +15,7 @@ subroutine get_series(X,t)
 ! Процедура возвращает временной ряд некоторый длины и массив отсчетов времени. 
 	implicit none
 
-	real(pr), parameter :: dt = 1.0_pr ! Значение шага в секундах
+	real(pr), parameter :: dt = 1.0_pr*0.3 ! Значение шага в секундах
 	real(pr), dimension(0:N-1), intent(out) :: X, t
 	integer :: k
 
@@ -60,13 +61,30 @@ function N_0_1(n) result(Z)
 	real(pr), dimension(:), allocatable :: u, v
 
 	allocate(Z(n),u(n),v(n))
-	call random_seed()
+	call init_random_seed()
 	call random_number(u)
-	call random_seed()
+	call init_random_seed()	
 	call random_number(v)
-	Z = sqrt(-2*log(u))*cos(2*pi*u)
+	Z = sqrt(-2*log(u))*cos(2*pi*v)
 
 end function N_0_1
+
+subroutine init_random_seed()
+	implicit none
+
+	integer :: i, n, clock
+	integer, dimension(:), allocatable :: seed
+
+	call random_seed(size = n)
+	allocate(seed(n))
+
+	call system_clock(count=clock)
+
+	seed = clock + 37 * (/ (i - 1, i = 1, n) /)
+	call random_seed(put = seed)
+
+	deallocate(seed)
+end subroutine init_random_seed
 
 !----------------------------------------------------------
 
@@ -84,6 +102,7 @@ subroutine delete_trend(X,t)
 	b = (sum(X) - a*sum(t)) / N
 
 	X = X - a*t - b
+	write(*,*) a, b
 
 end subroutine delete_trend
 

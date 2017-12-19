@@ -6,13 +6,13 @@ use funW
 
 contains
 
-subroutine do_bpf(choice)
+subroutine do_bpf(choice,x2yn)
 implicit none
 
 complex(pr), allocatable :: X(:), Y(:), Wx(:)
 real(pr),    allocatable :: ReImX(:,:), ReImY(:,:) ! Массивы (2,N), содержащие Re и Im чисел
 integer      :: N, N1, i
-character(1), intent(in) :: choice
+character(1), intent(in) :: choice, x2yn
 !---------------------------------------
 open(100,file='data.dat',status='old')
     read(100,'(2x,i30)') N
@@ -22,8 +22,12 @@ open(100,file='data.dat',status='old')
     do while (N1<N)
         N1=N1*2
     end do
-    ! И даже еще в два раза увеличим, как делается в книжке Витязева
-    N1=2*N1
+    if (x2yn == 'y') then
+        ! И даже еще в два раза увеличим, как делается в книжке Витязева
+        N1=2*N1
+    else if (x2yn /= 'n') then
+        stop 'x2yn must be y/n'
+    end if
     ! В файле в каждой строке записана пара значений -- 
     ! Re и Im числа
     allocate(ReImX(2,N1))
@@ -46,13 +50,13 @@ select case(choice)
         call preobraz(X,Y,Wx) ! В процедуре preobraz массивы будут индексироваться с 0
     case default; stop 'choice: Прямое ДПФ: 1; Обратное: 2'
 end select
-Y=Y/sqrt(N*1.0_pr)
+!Y=Y/sqrt(N*1.0_pr)
 deallocate(X)
 !---------------------------------------
 open(778,file='abs.dat')
     write(778,*) '# ', N
     do i=1,N
-        write(778,*) abs(Y(i))
+        write(778,*) abs(Y(i)/sqrt(N*1._pr))
     end do
 close(778)
 
