@@ -50,7 +50,7 @@ subroutine print_tX(t,X,filename)
 
 	character(*), intent(in) :: filename
 	real(pr), dimension(0:), intent(in) :: X, t
-	integer :: N
+	integer :: N, k
 
 	N = size(X)
 	!--------------------------------------------

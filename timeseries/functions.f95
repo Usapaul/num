@@ -6,7 +6,7 @@ implicit none
 integer,  parameter :: pr = 8
 
 ! Здесь N получает свое значение
-integer,  parameter :: N = 230 + 300 
+integer,  parameter :: N = 230
 real(pr), parameter :: pi = 4.0_pr*atan(1.0_pr)
 
 contains
@@ -15,7 +15,7 @@ subroutine get_series(X,t)
 ! Процедура возвращает временной ряд некоторый длины и массив отсчетов времени. 
 	implicit none
 
-	real(pr), parameter :: dt = 1.0_pr*0.3 ! Значение шага в секундах
+	real(pr), parameter :: dt = 1.0_pr ! Значение шага в секундах
 	real(pr), dimension(0:N-1), intent(out) :: X, t
 	integer :: k
 
@@ -63,8 +63,10 @@ function N_0_1(n) result(Z)
 	allocate(Z(n),u(n),v(n))
 	call init_random_seed()
 	call random_number(u)
+	write(*,*) 'u  ', u(1:n:n/5)
 	call init_random_seed()	
 	call random_number(v)
+	write(*,*) 'v  ', v(1:n:n/5)
 	Z = sqrt(-2*log(u))*cos(2*pi*v)
 
 end function N_0_1
@@ -80,7 +82,9 @@ subroutine init_random_seed()
 
 	call system_clock(count=clock)
 
+	write(*,*) n
 	seed = clock + 37 * (/ (i - 1, i = 1, n) /)
+	write(*,*) seed
 	call random_seed(put = seed)
 
 	deallocate(seed)
@@ -102,7 +106,6 @@ subroutine delete_trend(X,t)
 	b = (sum(X) - a*sum(t)) / N
 
 	X = X - a*t - b
-	write(*,*) a, b
 
 end subroutine delete_trend
 
