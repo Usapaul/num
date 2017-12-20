@@ -63,10 +63,8 @@ function N_0_1(n) result(Z)
 	allocate(Z(n),u(n),v(n))
 	call init_random_seed()
 	call random_number(u)
-	write(*,*) 'u  ', u(1:n:n/5)
 	call init_random_seed()	
 	call random_number(v)
-	write(*,*) 'v  ', v(1:n:n/5)
 	Z = sqrt(-2*log(u))*cos(2*pi*v)
 
 end function N_0_1
@@ -82,9 +80,7 @@ subroutine init_random_seed()
 
 	call system_clock(count=clock)
 
-	write(*,*) n
 	seed = clock + 37 * (/ (i - 1, i = 1, n) /)
-	write(*,*) seed
 	call random_seed(put = seed)
 
 	deallocate(seed)

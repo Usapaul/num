@@ -47,16 +47,24 @@ subroutine compute_Dj(dt)
 
 end subroutine compute_Dj
 
-subroutine estimate_dispersion(X,N)
+subroutine estimate_dispersion(X,N,q)
 	implicit none
 
-	real(pr), parameter :: X1 = 9.0_pr
+	real(pr) :: X1
+	real(pr), optional, intent(in) :: q
 	real(pr), dimension(0:), intent(in) :: X
 	integer, intent(in) :: N
 	real(pr) :: disp
 	integer :: j
 
 	!------------------------------------------------------
+	if (present(q)) then
+		X1 = - log(1 - (1 - q)**(2._pr/(N-2)))
+	else
+		! Это по умолчанию для q = 0.01 и N = 230
+		X1 = 9
+	end if
+
 	disp = 1._pr/(N-1) * sum(X**2)
 	disp_lvl = disp * X1 / N
 
