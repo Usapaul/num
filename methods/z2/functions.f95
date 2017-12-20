@@ -30,9 +30,7 @@ subroutine solve(Y,Z,n1,n2,h)
 
 	!--------------------------------------------
 	do i = n1, n2
-		!Z(i) = 1 ! Взято случайное число для начального шага итераций
-		znew = 1 ! --- // --- (аналогично)
-		!write(*,*) 'Z(i-1) = ', Z(i-1)
+		znew = 1 ! Взято случайное число для начального шага итераций
 		do while (abs(znew - Z(i)) > eps)
 			Z(i) = znew
 			sl1 = Z(i-1) * Czn
@@ -40,10 +38,8 @@ subroutine solve(Y,Z,n1,n2,h)
 			sl3 = sqrt((x0 + h*(i-0.5_pr))**2 + 1) * Csqrt
 			sl4 = (Z(i-1) + Z(i)) / (Z(i-1) + Z(i) + 2) * (-h/2)
 			znew = (sl1 + sl2 + sl3 + sl4) / Czn1
-		!	write(*,*) znew - Z(i)
 		end do
 		Z(i) = znew
-		!write(*,*) 'i = ', i, 'Z(i) =  ', Z(i)
 		sl1 = Y(i-1) * (1 + A*h/8)
 		sl2 = Z(i-1) * (-h/4)
 		sl3 = Z(i) * (-h/4)
@@ -51,5 +47,12 @@ subroutine solve(Y,Z,n1,n2,h)
 		Y(i) = (sl1 + sl2 + sl3 + sl4) * 8/(8 - A*h)
 	end do
 end subroutine solve
+
+subroutine initC()
+	Czn1 = 1 - h/4 - A*h**2 / (2 * (8 - A*h))
+	Czn = 1 + h/4 + A*h**2 / (2 * (8 - A*h))
+	Cyn = - A*h/4 - A*h * (8 + A*h) / (4 * (8 - A*h))
+	Csqrt = - A*h**2 / (8 - A*h)
+end subroutine initC
 
 end module functions

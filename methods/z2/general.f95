@@ -6,7 +6,6 @@ implicit none
 
 ! Параметр pr, задающий точность, описан в модуле
 integer  :: Ntot ! Ntot(al) -- количество промежутков разбиения
-real(pr) :: C
 real(pr), dimension(:), allocatable :: X, Y, Z
 integer :: i
 character(1) :: test
@@ -42,11 +41,7 @@ h = (xend - x0) / Ntot
 forall (i=1:Ntot) X(i) = x0 + h*i
 
 ! Коэффициенты Czn1, Czn, Cyn, Csqrt описаны в модуле
-Czn1 = 1 - h/4 - A*h**2 / (2 * (8 - A*h))
-Czn = 1 + h/4 + A*h**2 / (2 * (8 - A*h))
-Cyn = - A*h/4 - A*h * (8 + A*h) / (4 * (8 - A*h))
-Csqrt = - A*h**2 / (8 - A*h)
-
+call initC()
 call solve(Y=Y,Z=Z,n1=1,n2=Ntot,h=h)
 
 ! Теперь вторая часть за точкой xend и до 1:
@@ -54,6 +49,7 @@ x0 = xend
 xend = 1
 h = (xend - x0) / Ntot
 forall (i=Ntot+1:Ntot*2) X(i) = x0 + h*(i-Ntot)
+call initC()
 call solve(Y=Y,Z=Z,n1=Ntot+1,n2=2*Ntot,h=h)
 
 open(100,file='results.dat',status='replace')
@@ -62,7 +58,7 @@ open(100,file='results.dat',status='replace')
 	end do
 close(100,status='keep')
 
-write(*,*) X(Ntot)
+!================================================
 
 contains
 
