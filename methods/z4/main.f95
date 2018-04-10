@@ -13,6 +13,15 @@ real(pr), dimension(:,:), allocatable :: matr
 real(pr), dimension(:), allocatable :: polynom_c
 integer :: i
 
+
+
+
+integer :: iii, kkk
+real(pr), dimension(10) :: xes 
+
+
+
+
 !------------------------------------------------
 call init_consts() ! Начнем с инициализации постоянных из условия
 ! В то время как K(x,t) и f(x) нужно явно описывать в модуле init
@@ -20,6 +29,7 @@ call init_consts() ! Начнем с инициализации постоянн
 ! n_grid -- количество узлов коллокации, определяется в модуле init
 allocate(matr(n_grid,n_grid)) ! Матрица из коэфф., используемая в решении
 allocate(polynom_c(n_grid)) ! массив из искомых коэффициентов в разложении
+allocate(X(n_grid)) ! массив из узлов сетки
 
 ! Выбор полинома здесь, см. модуль init. 1 -- Лежандра, 2 -- Чебышева
 what_the_polynomial = 1
@@ -42,12 +52,13 @@ open(120,file='matrix.dat',status='replace')
 do i=1,n_grid
 	write(120,*) matr(i,:)
 end do
+close(120,status='keep')
+
 open(130,file='fff.dat')
 do i=1,n_grid
 	write(130,*) f(X(i))
 end do
 close(130)
-close(120,status='keep')
 
 
 
@@ -69,15 +80,59 @@ call output_function(result_function,(/(-1 + 0.2_pr*i,i=0,10)/))
 
 
 
-
-call la_syev(matr,polynom_c)
-do i=1,n_grid
-	write(*,*) polynom_c(i)
+write(*,*) ' '
+xes = (/(-1 + 0.2_pr*i,i=1,size(xes))/)
+do i=1,size(xes)
+	write(*,*) xes(i), result_function(xes(i))
 end do
+write(*,*) ' '
+do i=1,size(xes)
+	write(*,*) 'i ===', i, result_function(xes(i)) - f(xes(i))
+	iii = i
+	write(*,*) 'integral:', integral(KK_phi,a_left,b_right)
+end do
+
+
+!call la_syev(matr,polynom_c)
+!do i=1,n_grid
+!	write(*,*) polynom_c(i)
+!end do
 
 
 
 contains
+
+
+
+
+
+
+
+pure real(pr) function KK_phi(t)
+	implicit none
+
+	real(pr), intent(in) :: t
+
+	!--------------------------------------------
+	KK_phi = K(xes(iii),t) * result_function(t)
+
+end function KK_phi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 pure real(pr) function result_function(x)
 	! Просто опишу функцию решения в том виде, в котором она
@@ -109,10 +164,10 @@ subroutine output_function(f,X,id_file)
 	end interface
 
 	!--------------------------------------------
-	!if ( .not. present(id_file)) then
-	!	id_file = 1987 ! рандомное число
-	!	write(*,*) 'HERE OK'
-	!end if
+	! if ( .not. present(id_file)) then
+		! id_file = 1987 ! рандомное число
+		! write(*,*) 'HERE OK'
+	! end if
 	aaa = 895
 	open(aaa,file='fun_table.dat',status='replace')
 	do i=1,size(X)

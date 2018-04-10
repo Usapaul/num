@@ -43,7 +43,7 @@ pure recursive real(pr) function chebyshev(n,x) result(T)
 
 	!--------------------------------------------
 	if (n > 1) then
-		T = 2 * x * chebyshev(n,x) - chebyshev(n-1,x)
+		T = 2 * x * chebyshev(n-1,x) - chebyshev(n-2,x)
 	else if (n == 1) then
 		T = x
 	else

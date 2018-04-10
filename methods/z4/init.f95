@@ -55,7 +55,7 @@ elemental real(pr) function K(x,t)
 	real(pr), intent(in) :: x, t
 
 	!--------------------------------------------
-	K = sqrt(1.0_pr + a_const*sin(x - t))
+	K = 1_pr * sqrt(1.0_pr + a_const*sin(x - t))
 
 end function K
 
