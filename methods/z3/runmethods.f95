@@ -12,7 +12,7 @@ subroutine itermethod(matr,X0,l_1,count)
 
 	real(pr), dimension(1:), intent(in) :: X0
 	real(pr), dimension(1:size(X0),1:size(X0)), intent(in) :: matr
-	real(pr), parameter :: eps = 1e-3 * 0.1**pr ! точнее, чем ">" pr
+	real(pr), parameter :: eps = 0.1**(pr/2+2) ! точнее, чем ">" pr
 	real(pr), dimension(1:size(X0)) :: Xnew, X 
 	real(pr), intent(out) :: l_1 ! наибольшее собственное число 
 	integer, parameter :: nummax=3e5 ! Максимально допустимое число итераций
@@ -30,8 +30,9 @@ subroutine itermethod(matr,X0,l_1,count)
 		X = Xnew / Xnew(1)
 		Xnew = matmul(transpose(matr),X)
 		count = count + 1
-		if (mod(count,500)==0) write(*,*) count
+		if (mod(count,500)==0) write(*,*) count ! Чтобы видеть, если долго
 	end do
+
 	l_1 = Xnew(1)
 
 	X = Xnew / Xnew(1)
@@ -58,6 +59,7 @@ end function norma
 !================================================
 
 pure function givens(matr) result(diag3)
+	! Построение трехдиаг. матрицы методом вращений
 	implicit none
 
 	real(pr), dimension(1:,1:), intent(in) :: matr
@@ -87,9 +89,11 @@ pure function givens(matr) result(diag3)
 
 	! Наконец, получили трехдиаг. матрицу в результате:
 	diag3 = transpose(matrix)
+
 end function givens
 
 pure function rotmatr(n,p,q,c,s) result(rot)
+	! Построение матрицы вращений, которая нужна в методе Гивенса
 	implicit none
 
 	integer, intent(in) :: p, q, n ! номера строки, столбца; размер матрицы
@@ -158,69 +162,163 @@ end function minor
 
 !================================================
 
-recursive function find_roots(P) result(X)
+function find_roots(P) result(X)
 	! Ищем все корни полинома, коэфф. которого хранятся в массиве P
 	implicit none
 
 	real(pr), dimension(0:), intent(in) :: P
 	! корней на 1 меньше чем размер P (т.к. P содержит все коэфф.,
 	! в том числе и при нулевой степени. size(P_n) = n+1,
-	! где n -- степень полинома. Кол-во корней = n.
-	! Индексировать корни буду в обратном порядке:
-	! первый найденный будет X_n, второй -- X_n-1
-	! и так далее, пока не найду последний -- X_1
 	real(pr), dimension(1:size(P)-1) :: X
+
 	! X0 -- начальное приближение. Будет const, если не придумаю
-	! что-то более изощренное
-	real(pr) :: X0 = 1
-	integer :: n
+	! что-то более изощренное... UPD: Придумал! Точнее, вынужден был
+	! придумать, потому что из-за локальных экстремумов у полинома
+	! у меня возникает зацикливание метода Ньютона и появление бесконечностей:
+	real(pr), dimension(1:size(P)-1) :: X0 ! -- массив из начальных приближений
+
+	integer :: n, i
 
 	n = size(P) - 1
 	!--------------------------------------------
-	if (n > 1) then
-		X(n) = newton(P,X0) ! Нахождение корня методом Ньютона с нач.приб. X0
-		X(n-1:1:-1) = find_roots(gorner(P,X(n)))
-	else
-		X(1) = -P(0) / P(1) ! Ну у линейной функции корень найти можно
-	end if
+	X0 = find_good_x0(P)
+	do i=1,n
+		X(i) = newton(P,X0(i))
+	end do
 end function find_roots
+
+function find_good_x0(P) result(x0roots)
+	! Функция возвращает x0 -- хорошее начальное приближение, которое
+	! можно потом использовать для нахождения корня полинома методом Ньютона
+	implicit none
+
+	real(pr), dimension(0:), intent(in) :: P
+	real(pr), dimension(1:size(P)-1) :: x0roots ! Массив из начальных приближений
+	real(pr) :: l_max ! max по модулю собственное число
+
+	! Буду работать с разбиением отрезка. Для простоты левую и правую
+	! границы отрезка буду называть соответственно 'a' и 'b':
+	real(pr) :: a, b	
+
+	real(pr), parameter :: eps = 0.1**(pr/4*3)
+
+	! число частей, на которые разбивается каждый отрезок -- m, и оно
+	! выбрано практически случайным образом
+	integer :: m ! выбрал n*8, считая оптимальным, ниже будет присваивание
+
+	real(pr), dimension(:), allocatable :: t ! массив из точек
+	real(pr), dimension(:), allocatable :: fun ! значения ф-ции в точках t
+
+	integer :: count_roots ! Счетчик числа найденных интервалов с корнями
+	integer :: n, i, k
+
+	n = size(P) - 1
+	m = n * 8
+	!--------------------------------------------
+	! Итак, мне надо найти хорошее начальное приближение к корню, зная, что
+	! исследуемая функция -- полином, коэффициенты которого я знаю, и то, что
+	! наибольший по модулю корень мне известен -- это наиб. по модулю с.ч., 
+	! так как в этой задаче корни полинома -- это все собственные числа матрицы
+
+	! Нужно построить сетку и записать значения полинома в ней, чтобы найти 
+	! такие соседние точки сетки, где функция (полином) меняет знак. Затем 
+	! следует разбить отрезок, соединяющий эти соседние две точки тоже на 
+	! множество частей и в точках новой сетки искать две соседние, где 
+	! функция меняет знак (уточняем месторасположение корня). Нужно когда-то
+	! остановиться с таким разбиением -- когда уже можно быть уверенным, что
+	! функция не успеет между двумя соседними точками образовать два локальных
+	! экстремума. Так как при нахождении корня методом касательных (Ньютона)
+	! в локальных точках экстремума метод зациклится, сходясь к точке
+	! экстремума, но не к точке корня. Поэтому мне нужно придумать критерий
+	! для остановки разбиения. 
+
+	! Буду искать все корни, то есть сразу все интервалы, где находятся корни,
+	! и останавливается разбиение именно тогда, когда число таких интервалов
+	! становится равным числу возможных корней у полинома
+	!--------------------------------------------
+	count_roots = 0
+	allocate(t(0:m),fun(0:m))
+
+	l_max = just_l_max
+
+	! Известно, что корни, которые я ищу у полинома, -- это
+	! собственные числа матрицы, причем, я знаю наибольшее по
+	! модулю. А значит, могу сузить границы поиска остальных 
+	! корней до отрезка [-l_max,l_max], один из концов которого --
+	! реальный корень. Чтобы по алгоритму был найден и этот корень,
+	! отрезок следует расширить: расширю на 0.01eps на обоих краях:
+	a = -l_max - eps*1e-2
+	b = l_max + eps*1e-2
+
+	! Строится сетка (разбиение на m частей):
+	forall (i=0:m) t(i) = a + (b - a) * i / m
+	forall (i=0:m) fun(i) = fp(P,t(i))	
+
+	count_roots = count((/(fun(i)*fun(i-1) < 0,i=1,m)/))
+	do while (count_roots < n)
+		deallocate(t,fun)
+		m = m * 2
+		allocate(t(0:m),fun(0:m))
+
+		forall (i=0:m) t(i) = a + (b - a) * i / m
+		forall (i=0:m) fun(i) = fp(P,t(i))
+
+		! Посчитаем, сколько в текущем разбиении есть интервалов с корнями:
+		count_roots = count((/(fun(i)*fun(i-1) < 0,i=1,m)/))
+	end do
+	if (count_roots > n) stop 'COUNT_ROOTS > N' ! Ну вдруг
+
+	! Ну всё, все интервалы с корнями найдены, возьму как начальное
+	! приближение каждого корня середину отрезка, в котором, как
+	! я к этому моменту уже вычислил, -- точно содержится корень
+	k = 0
+	do i=1,m
+		if (fun(i)*fun(i-1) < 0) then
+			x0roots(k+1) = (t(i) + t(i-1)) / 2
+			k = k + 1
+		end if
+		if (k == count_roots) exit
+	end do
+end function find_good_x0
 
 function newton(P,X0) result(root)
 	implicit none
 	! newton() возвращает корень полинома
 	! используя начальное приближение X0
 
-	real(pr), dimension(1:), intent(in) :: P
+	real(pr), dimension(0:), intent(in) :: P
 	real(pr), intent(in) :: X0
 	real(pr) :: root
 	real(pr) :: x, xnew, f_x, f_xeps
-	real(pr), parameter :: eps = 1e-5 * 0.1**pr
-	real(pr), parameter :: f_eps = 1e1 * 0.1**pr
+	real(pr), parameter :: eps = 0.1**(pr/3*4-1)
+	real(pr), parameter :: h_eps = 0.1**(pr + 2)
 	integer, parameter :: nummax = 1e4 ! Максимально допустимое число итераций
-	integer :: count = 0 ! счетчик числа итераций
+	integer :: count ! счетчик числа итераций
 	integer :: i, n
 
 	n = size(P) - 1
 	!--------------------------------------------
 	x = X0
-	xnew = X0 + 1 ! для того, чтобы в do while не было совпадения сразу
+	xnew = X0 + 1e3 * eps ! для того, чтобы в do while не было совпадения сразу
 
+	count = 0
 	do while (abs(xnew - x) > eps .and. count < nummax)
 		x = xnew
 		! следующее выражение эквивалентно x-f(x)/f'(x):
-		xnew = x - fp(P,x) * f_eps / (fp(P,x+f_eps) - fp(P,x))
+		xnew = x - fp(P,x) / (fp(P,x + h_eps) - fp(P,x - h_eps)) * 2 * h_eps
 		count = count + 1
 	end do
 
 	if (count == nummax) then
 		write(*,*) 'In newton method function count reached NUMMAX'
-		write(*,*) 'Polynomial degree = ', n
 	end if
 
 	root = xnew
+
 end function newton
 
 pure real(pr) function fp(P,x)
+	! Функция-полином с коэффициентами a_n в массиве P
 	implicit none
 
 	real(pr), dimension(0:), intent(in) :: P
@@ -234,27 +332,5 @@ pure real(pr) function fp(P,x)
 		fp = fp * x + P(i)
 	end do
 end function fp
-
-pure function gorner(P,x) result(P1)
-	implicit none
-	! Просто делим многочлен P(y) степени n на бином (y-x),
-	! где x -- заранее известный корень многочлена P(y)
-	! Получится многочлен степени n-1, коэффициенты
-	! которого будут записаны в P1, что и будет 
-	! результатом применения функции gorner
-
-	real(pr), dimension(0:), intent(in) :: P
-	real(pr), dimension(0:size(P)-2) :: P1
-	real(pr), intent(in) :: x
-	integer :: n, i
-
-	n = size(P) - 1
-	!--------------------------------------------
-	! Ниже просто реализована схема Горнера, ничего больше.
-	P1(n-1) = P(n)
-	do i=n-2,0,-1
-		P1(i) = x * P1(i+1) + P(i+1)
-	end do
-end function gorner
 
 end module runmethods
