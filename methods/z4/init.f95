@@ -55,8 +55,9 @@ elemental real(pr) function K(x,t)
 	real(pr), intent(in) :: x, t
 
 	!--------------------------------------------
-	K = 1_pr * sqrt(1.0_pr + a_const*sin(x - t))
-
+	!K = 0.1_pr * sqrt(1.0_pr + a_const*sin(x - t))
+	!K = 0.62_pr * log(1.0_pr + x*t/3)
+	K = -0.72_pr * sin(x*(0.5_pr + t*t))
 end function K
 
 elemental real(pr) function f(x)
@@ -65,8 +66,9 @@ elemental real(pr) function f(x)
 	real(pr), intent(in) :: x
 
 	!--------------------------------------------
-	f = 1.0_pr + x
-
+	!f = 1.0_pr + x
+	!f = 0.62_pr + x
+	f = x - 0.72_pr
 end function f
 
 end module init

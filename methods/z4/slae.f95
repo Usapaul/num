@@ -7,6 +7,7 @@ implicit none
 contains
 
 function solve(A,B) result(X)
+	! Таки эта процедура создает расширенную матрицу и отправляет ее gauss_slae
 	implicit none
 
 	real(pr), dimension(1:,1:), intent(in) :: A
@@ -31,6 +32,8 @@ function solve(A,B) result(X)
 end function solve
 
 subroutine gauss_slae(M,X)
+	! Как можно догадаться из названия, эта процедура решает СЛАУ по
+	! методу Гаусса. Причем, именно с выбором ведущего элемента
 	implicit none
 
 	real(pr), dimension(1:,1:), intent(inout) :: M

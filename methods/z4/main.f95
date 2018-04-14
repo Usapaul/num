@@ -13,14 +13,8 @@ real(pr), dimension(:,:), allocatable :: matr
 real(pr), dimension(:), allocatable :: polynom_c
 integer :: i
 
-
-
-
-integer :: iii, kkk
-real(pr), dimension(10) :: xes 
-
-
-
+integer :: i_for_KK ! Нужно для вывода результатов
+real(pr), dimension(:), allocatable :: X_results, Discrepancy ! тоже для вывода
 
 !------------------------------------------------
 call init_consts() ! Начнем с инициализации постоянных из условия
@@ -46,25 +40,7 @@ call coeff(matr)
 ! уравнений, матрица которой -- matr, а столбец в правой части системы
 ! -- это вектор, состоящий из значений f(X(i)).
 
-
-
-open(120,file='matrix.dat',status='replace')
-do i=1,n_grid
-	write(120,*) matr(i,:)
-end do
-close(120,status='keep')
-
-open(130,file='fff.dat')
-do i=1,n_grid
-	write(130,*) f(X(i))
-end do
-close(130)
-
-
-
 polynom_c = solve(matr,f(X))
-
-
 
 !================================================
 
@@ -73,65 +49,63 @@ polynom_c = solve(matr,f(X))
 ! нужно вывести таблицу значений функции и сравнить с тем, что
 ! как бы должно получиться (взяв модельную задачу с известным решением)
 
-do i=1,n_grid
-	write(*,*) polynom_c(i)
-end do
-call output_function(result_function,(/(-1 + 0.2_pr*i,i=0,10)/))
-
-
-
 write(*,*) ' '
-xes = (/(-1 + 0.2_pr*i,i=1,size(xes))/)
-do i=1,size(xes)
-	write(*,*) xes(i), result_function(xes(i))
+write(*,*) 'polynom coefficients:'
+call print_vector(polynom_c)
+
+! В Discrepancy будет храниться вычисленная невязка. То есть то значение,
+! которое получится, если в исходное интегральное уравнение вставить
+! найденную мной функцию -- квадратурную, сумму из полиномов. Потом
+! эту невязку я буду выводить вместе с результатами, чтобы было видно,
+! что программа работает. А то сухие числа ничего и не дают ведь
+
+! А X_results -- значения абсциссы, в которых я значение функции
+! вычисляю и вывожу на экран (или в файл)
+
+allocate(X_results(0:10),Discrepancy(0:10))
+X_results = (/(0.0_pr + 0.1_pr*i,i=0,10)/)
+
+do i=0,size(X_results)-1
+	! i_for_KK говорит отчасти само за себя. Я там ниже определил функцию
+	! KK_phi(t), которая представляет из себя произведение K*phi, но с 
+	! нужными текущими значениями i для X(i). Вот эта переменная там нужна: 
+	i_for_KK = i
+
+	! В одну строку такое не поместилось, и в две тоже, поэтому их... три!
+	! В этих трех строчках я действительно честно подставляю найденное
+	! решение в исходное интегральное уравнение, да в итоге нахожу невязку
+	! для каждой точки из X_results
+	Discrepancy(i) = result_function(X_results(i))
+	Discrepancy(i) = Discrepancy(i) - integral(KK_phi,a_left,b_right)
+	Discrepancy(i) = Discrepancy(i) - f(X_results(i))
 end do
-write(*,*) ' '
-do i=1,size(xes)
-	write(*,*) 'i ===', i, result_function(xes(i)) - f(xes(i))
-	iii = i
-	write(*,*) 'integral:', integral(KK_phi,a_left,b_right)
-end do
 
-
-!call la_syev(matr,polynom_c)
-!do i=1,n_grid
-!	write(*,*) polynom_c(i)
-!end do
-
+call output_function(result_function,X_results,Discrepancy)
 
 
 contains
 
 
+subroutine print_vector(X)
+	! Тупо печать вектора в удобном виде
+	real(pr), dimension(1:), intent(in) :: X
+	integer :: i
 
-
-
-
+	do i=1,size(X)
+		write(*,'(f15.12)') X(i)
+	end do
+end subroutine print_vector
 
 pure real(pr) function KK_phi(t)
+	! Нужна только лишь для вывода невязки
 	implicit none
 
 	real(pr), intent(in) :: t
 
 	!--------------------------------------------
-	KK_phi = K(xes(iii),t) * result_function(t)
+	KK_phi = K(X_results(i_for_KK),t) * result_function(t)
 
 end function KK_phi
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 pure real(pr) function result_function(x)
@@ -146,14 +120,14 @@ pure real(pr) function result_function(x)
 	result_function = dot_product(polynom_c,(/(phi(k,x),k=1,size(polynom_c))/))
 end function result_function
 
-subroutine output_function(f,X,id_file)
+subroutine output_function(f,X,Discrepancy,idfile)
 	! Процедура выполняет запись табличных значений функции f в файл,
-	! и ничего больше не делает. idfile можно задать как std_out
+	! или на экран, и ничего больше не делает
 	implicit none
 
-	real(pr), dimension(1:), intent(in) :: X
-	integer, optional :: id_file
-	integer :: aaa
+	real(pr), dimension(1:), intent(in) :: X, Discrepancy
+	integer, optional :: idfile
+	integer :: id = 987 ! рандомное число
 	integer :: i
 
 	interface
@@ -164,16 +138,19 @@ subroutine output_function(f,X,id_file)
 	end interface
 
 	!--------------------------------------------
-	! if ( .not. present(id_file)) then
-		! id_file = 1987 ! рандомное число
-		! write(*,*) 'HERE OK'
-	! end if
-	aaa = 895
-	open(aaa,file='fun_table.dat',status='replace')
+	if (present(idfile)) then
+		id = idfile
+		open(id,file='fun_table.dat',status='replace')
+		write(id,*) X(i), f(X(i))
+		close(id,status='keep')	
+	end if
+
+	write(*,*) ' '
+	write(*,*) '        x        ', '     u(x)      ', '   Discrepancy      '
 	do i=1,size(X)
-		write(aaa,*) X(i), f(X(i))
+		write(*,'(2(2x,f13.9),5x,e13.6)') X(i), f(X(i)), Discrepancy(i)
 	end do
-	close(aaa,status='keep')
+
 end subroutine output_function
 
 end program collocation

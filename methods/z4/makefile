@@ -31,7 +31,7 @@ whole_rule = $(call aim,$(1)) : $(call depend,$(1)) ; \
 #------------------------------------------------
 
 $(EXENAME) : $(OBJECTFILES)
-	$(COMPEXE) $^
+	$(COMPEXE) $^ $(LIB)
 
 $(call whole_rule,MAIN)
 $(call whole_rule,RUNMETHODS)

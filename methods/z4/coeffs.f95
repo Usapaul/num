@@ -21,6 +21,8 @@ integer, private :: i_pol, k_pol
 contains
 
 subroutine coeff(matr)
+	! Создаются коэффициенты для матрицы, которую в методе коллокаций
+	! придется решать как систему с правой частью из f(X(i))
 	implicit none
 
 	real(pr), dimension(1:,1:), intent(inout) :: matr
@@ -39,6 +41,8 @@ subroutine coeff(matr)
 end subroutine coeff
 
 pure real(pr) function K_phi(t)
+	! Эта функция мне нужна для того, чтобы с правильными параметрами 
+	! i и k отдать ее на интегрирование:) 
 	implicit none
 
 	real(pr), intent(in) :: t
